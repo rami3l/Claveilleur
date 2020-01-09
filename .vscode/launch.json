@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "sourceLanguages": ["swift"],
+      "name": "Debug Claveilleur",
+      "program": "${workspaceFolder:Claveilleur}/.build/debug/Claveilleur",
+      "args": [],
+      "cwd": "${workspaceFolder:Claveilleur}",
+      "preLaunchTask": "swift: Build Debug Claveilleur"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "sourceLanguages": ["swift"],
+      "name": "Release Claveilleur",
+      "program": "${workspaceFolder:Claveilleur}/.build/release/Claveilleur",
+      "args": [],
+      "cwd": "${workspaceFolder:Claveilleur}",
+      "preLaunchTask": "swift: Build Release Claveilleur"
+    }
+  ]
+}
