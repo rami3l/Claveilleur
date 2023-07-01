@@ -60,24 +60,159 @@ let currentInputSourceObserver = NotificationCenter
     saveInputSource(inputSource, forApp: currentApp)
   }
 
-let currentAppObserver = NSWorkspace
-  .shared
-  .notificationCenter
-  .publisher(for: NSWorkspace.didActivateApplicationNotification)
-  .sink { notification in
-    guard let currentApp = getCurrentAppID() else {
-      return
-    }
+// let currentAppObserver = NSWorkspace
+//   .shared
+//   .notificationCenter
+//   .publisher(for: NSWindow.didBecomeKeyNotification)
+//   .sink { notification in
+//     guard let currentApp = getCurrentAppID() else {
+//       return
+//     }
 
-    print("Switching to app: \(currentApp)")
-    guard
-      let oldInputSource = userDefaults.string(forKey: currentApp),
-      setInputSource(to: oldInputSource)
-    else {
-      let newInputSource = getInputSource()
-      saveInputSource(newInputSource, forApp: currentApp)
-      return
+//     print("Switching to app: \(currentApp)")
+//     guard
+//       let oldInputSource = userDefaults.string(forKey: currentApp),
+//       setInputSource(to: oldInputSource)
+//     else {
+//       let newInputSource = getInputSource()
+//       saveInputSource(newInputSource, forApp: currentApp)
+//       return
+//     }
+//   }
+
+// class CurrentAppObserver: NSObject {
+//   @objc var currentWorkSpace: NSWorkspace
+//   var observation: NSKeyValueObservation?
+
+//   convenience override init() {
+//     self.init(workspace: NSWorkspace.shared)
+//   }
+
+//   init(workspace: NSWorkspace) {
+//     currentWorkSpace = workspace
+//     super.init()
+
+//     observation = observe(
+//       \.currentWorkSpace.frontmostApplication,
+//       options: [.new]
+//     ) { _, change in
+//       print("switching to \(change.newValue!!.bundleIdentifier! as String)")
+//     }
+//   }
+// }
+
+// let currentAppObserver = CurrentAppObserver()
+
+// https://apple.stackexchange.com/a/317705
+// https://gist.github.com/ljos/3040846
+// https://stackoverflow.com/a/61688877
+let onScreenAppPIDs =
+  (CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID)!
+  as Array)
+  .compactMap { $0.object(forKey: kCGWindowOwnerPID) as? pid_t }
+
+// TODO: Observe the changes of runningApplications.
+let runningApps = NSWorkspace
+  .shared
+  .runningApplications
+  .filter { onScreenAppPIDs.contains($0.processIdentifier) }
+
+// TODO: Listen for `NSAccessibilityFocusedWindowChangedNotification` for each pid
+// https://developer.apple.com/documentation/appkit/nsaccessibilityfocusedwindowchangednotification
+
+// runningApps.forEach { print($0) }
+
+// https://juejin.cn/post/6919528826196197390
+// let systemWideAXUIElement = AXUIElementCreateSystemWide()
+// var names: CFArray?
+// let error: AXError = AXUIElementCopyAttributeNames(systemWideAXUIElement, &names)
+// for name in names as! [String] {
+//   print("attribute name \(name)")
+//   var value: AnyObject?
+//   let error: AXError = AXUIElementCopyAttributeValue(
+//     systemWideAXUIElement, name as CFString, &value)
+//   print("value \(value as! AXValue)")
+// }
+
+// func test(for element: AXUIElement) throws {
+//   let focusedWindow: AXUIElement = try element.getValue(forKey: kAXFocusedWindowAttribute).get()
+//   var names: CFArray?
+//   AXUIElementCopyAttributeNames(focusedWindow, &names)
+//   for name in names as! [String] {
+//     print("attribute name \(name)")
+//   }
+//   let isFocused: AXValue = try focusedWindow.getValue(forKey: kAXFocusedAttribute).get()
+//   print("isFocused: ", isFocused)
+//   let isMain: AXValue = try focusedWindow.getValue(forKey: kAXMainAttribute).get()
+//   print("isMain: ", isMain)
+// }
+
+enum AXUIError: Error {
+  case axError(String)
+  case typeCastError(String)
+}
+
+extension AXUIElement {
+  func getValue<T>(forKey key: String) throws -> T {
+    var res: AnyObject?
+    let axResult = AXUIElementCopyAttributeValue(self, key as CFString, &res)
+    guard case .success = axResult else {
+      throw AXUIError.axError("AXUI function failed with `\(axResult)`")
     }
+    guard let res = res as? T else {
+      throw AXUIError.typeCastError("downcast failed from `\(type(of: res))` to `\(T.self)`")
+    }
+    return res
+  }
+}
+
+// try runningApps.forEach {
+//   print(" - ", $0.bundleIdentifier ?? "n/a")
+//   let element = AXUIElementCreateApplication($0.processIdentifier)
+//   do { try test(for: element) } catch let e { print(e) }
+// }
+
+// print(runningApps)
+// let currentApp: AXUIElement = try AXUIElementCreateSystemWide().getValue(
+//   forKey: kAXFocusedApplicationAttribute
+// )
+// print(currentApp)
+// var names: CFArray?
+// AXUIElementCopyAttributeNames(currentApp, &names)
+// for name in names as! [String] {
+//   print("attribute name \(name)")
+// }
+
+func getCurrentAppID() throws -> pid_t {
+  let currentApp: AXUIElement = try AXUIElementCreateSystemWide().getValue(
+    forKey: kAXFocusedApplicationAttribute
+  )
+  var res: pid_t = 0
+  let axResult = AXUIElementGetPid(currentApp, &res)
+  guard case .success = axResult else {
+    throw AXUIError.axError("AXUI function failed with `\(axResult)`")
+  }
+  return res
+}
+
+class CurrentAppObserver: NSObject {
+  @objc dynamic var currentAppPID: pid_t {
+    return try! getCurrentAppID()
   }
 
+  var observation: NSKeyValueObservation?
+
+  override init() {
+    super.init()
+
+    observation = observe(
+      \.currentAppPID,
+      options: [.new]
+    ) { _, change in
+      print("switching to \(change.newValue!)")
+    }
+  }
+}
+
+let currentAppObserver = CurrentAppObserver()
 CFRunLoopRun()
