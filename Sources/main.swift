@@ -41,18 +41,13 @@ func setInputSource(to id: String) -> Bool {
   return true
 }
 
-func getCurrentAppID() -> String? {
-  let currentApp = NSWorkspace.shared.frontmostApplication
-  return currentApp?.bundleIdentifier
-}
-
 let currentInputSourceObserver = NotificationCenter
   .default
   .publisher(for: NSTextInputContext.keyboardSelectionDidChangeNotification)
   .map { _ in getInputSource() }
   .removeDuplicates()
   .sink { inputSource in
-    guard let currentApp = getCurrentAppID() else {
+    guard let currentApp = getCurrentAppBundleID() else {
       return
     }
 
@@ -60,92 +55,100 @@ let currentInputSourceObserver = NotificationCenter
     saveInputSource(inputSource, forApp: currentApp)
   }
 
-// let currentAppObserver = NSWorkspace
-//   .shared
-//   .notificationCenter
-//   .publisher(for: NSWindow.didBecomeKeyNotification)
-//   .sink { notification in
-//     guard let currentApp = getCurrentAppID() else {
-//       return
-//     }
-
-//     print("Switching to app: \(currentApp)")
-//     guard
-//       let oldInputSource = userDefaults.string(forKey: currentApp),
-//       setInputSource(to: oldInputSource)
-//     else {
-//       let newInputSource = getInputSource()
-//       saveInputSource(newInputSource, forApp: currentApp)
-//       return
-//     }
-//   }
-
-// class CurrentAppObserver: NSObject {
-//   @objc var currentWorkSpace: NSWorkspace
-//   var observation: NSKeyValueObservation?
-
-//   convenience override init() {
-//     self.init(workspace: NSWorkspace.shared)
-//   }
-
-//   init(workspace: NSWorkspace) {
-//     currentWorkSpace = workspace
-//     super.init()
-
-//     observation = observe(
-//       \.currentWorkSpace.frontmostApplication,
-//       options: [.new]
-//     ) { _, change in
-//       print("switching to \(change.newValue!!.bundleIdentifier! as String)")
-//     }
-//   }
-// }
-
-// let currentAppObserver = CurrentAppObserver()
-
-// https://apple.stackexchange.com/a/317705
-// https://gist.github.com/ljos/3040846
-// https://stackoverflow.com/a/61688877
-let onScreenAppPIDs =
-  (CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID)!
-  as Array)
-  .compactMap { $0.object(forKey: kCGWindowOwnerPID) as? pid_t }
-
-// TODO: Observe the changes of runningApplications.
-let runningApps = NSWorkspace
-  .shared
-  .runningApplications
-  .filter { onScreenAppPIDs.contains($0.processIdentifier) }
-
 // TODO: Listen for `NSAccessibilityFocusedWindowChangedNotification` for each pid
 // https://developer.apple.com/documentation/appkit/nsaccessibilityfocusedwindowchangednotification
+class RunningAppsObserver: NSObject {
+  @objc var currentWorkSpace: NSWorkspace
+  var observation: NSKeyValueObservation?
 
-// runningApps.forEach { print($0) }
+  var windowChangeObservers = [pid_t: WindowChangeObserver]()
 
-// https://juejin.cn/post/6919528826196197390
-// let systemWideAXUIElement = AXUIElementCreateSystemWide()
-// var names: CFArray?
-// let error: AXError = AXUIElementCopyAttributeNames(systemWideAXUIElement, &names)
-// for name in names as! [String] {
-//   print("attribute name \(name)")
-//   var value: AnyObject?
-//   let error: AXError = AXUIElementCopyAttributeValue(
-//     systemWideAXUIElement, name as CFString, &value)
-//   print("value \(value as! AXValue)")
-// }
+  convenience override init() {
+    self.init(workspace: NSWorkspace.shared)
+  }
 
-// func test(for element: AXUIElement) throws {
-//   let focusedWindow: AXUIElement = try element.getValue(forKey: kAXFocusedWindowAttribute).get()
-//   var names: CFArray?
-//   AXUIElementCopyAttributeNames(focusedWindow, &names)
-//   for name in names as! [String] {
-//     print("attribute name \(name)")
-//   }
-//   let isFocused: AXValue = try focusedWindow.getValue(forKey: kAXFocusedAttribute).get()
-//   print("isFocused: ", isFocused)
-//   let isMain: AXValue = try focusedWindow.getValue(forKey: kAXMainAttribute).get()
-//   print("isMain: ", isMain)
-// }
+  init(workspace: NSWorkspace) {
+    currentWorkSpace = workspace
+    windowChangeObservers = Self.getWindowChangeObservers(for: currentWorkSpace.runningApplications)
+    super.init()
+
+    observation = currentWorkSpace.observe(
+      \.runningApplications,
+      options: [.new]
+    ) { _, _ in
+      // TODO: Should not recreate necessary observers.
+      let oldKeys = Set(self.windowChangeObservers.keys)
+      let newKeys = Set(self.currentWorkSpace.runningApplications.map { $0.processIdentifier })
+      let toRemove = oldKeys.subtracting(newKeys)
+      for key in toRemove {
+        self.windowChangeObservers.removeValue(forKey: key)
+      }
+      let toAdd = newKeys.subtracting(oldKeys)
+      for key in toAdd {
+        self.windowChangeObservers[key] = WindowChangeObserver(pid: key)
+      }
+    }
+  }
+
+  static func getWindowChangeObservers(
+    for runningApps: [NSRunningApplication]
+  ) -> [pid_t: WindowChangeObserver] {
+    // https://apple.stackexchange.com/a/317705
+    // https://gist.github.com/ljos/3040846
+    // https://stackoverflow.com/a/61688877
+    // let onScreenAppPIDs =
+    //   (CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID)!
+    //   as Array)
+    //   .compactMap { $0.object(forKey: kCGWindowOwnerPID) as? pid_t }
+
+    return Dictionary(
+      uniqueKeysWithValues:
+        runningApps
+        .map { $0.processIdentifier }
+        // .filter { onScreenAppPIDs.contains($0) }
+        .map { ($0, WindowChangeObserver(pid: $0)) }
+    )
+  }
+}
+
+// https://stackoverflow.com/a/38928864
+let focusedWindowChangedNotification =
+  Notification.Name("claveilleur-focused-window-changed")
+
+let currentAppObserver = NSWorkspace
+  .shared
+  .notificationCenter
+  .publisher(for: Claveilleur.focusedWindowChangedNotification)
+  .map { getAppBundleID(forPID: $0.object as! pid_t) }
+  .merge(
+    with: NSWorkspace
+      .shared
+      .notificationCenter
+      .publisher(
+        for: NSWorkspace.didActivateApplicationNotification
+      )
+      .map { notif in
+        let userInfo =
+          notif.userInfo?[NSWorkspace.applicationUserInfoKey]
+          as? NSRunningApplication
+        return userInfo?.bundleIdentifier
+      }
+  )
+  .removeDuplicates()
+  .sink { currentApp in
+    print("ping from \(currentApp)")
+    // TODO: Should fix spotlight desactivation not detected.
+
+    // print("Switching to app: \(currentApp)")
+    // guard
+    //   let oldInputSource = userDefaults.string(forKey: currentApp),
+    //   setInputSource(to: oldInputSource)
+    // else {
+    //   let newInputSource = getInputSource()
+    //   saveInputSource(newInputSource, forApp: currentApp)
+    //   return
+    // }
+  }
 
 enum AXUIError: Error {
   case axError(String)
@@ -166,24 +169,7 @@ extension AXUIElement {
   }
 }
 
-// try runningApps.forEach {
-//   print(" - ", $0.bundleIdentifier ?? "n/a")
-//   let element = AXUIElementCreateApplication($0.processIdentifier)
-//   do { try test(for: element) } catch let e { print(e) }
-// }
-
-// print(runningApps)
-// let currentApp: AXUIElement = try AXUIElementCreateSystemWide().getValue(
-//   forKey: kAXFocusedApplicationAttribute
-// )
-// print(currentApp)
-// var names: CFArray?
-// AXUIElementCopyAttributeNames(currentApp, &names)
-// for name in names as! [String] {
-//   print("attribute name \(name)")
-// }
-
-func getCurrentAppID() throws -> pid_t {
+func getCurrentAppPID() throws -> pid_t {
   let currentApp: AXUIElement = try AXUIElementCreateSystemWide().getValue(
     forKey: kAXFocusedApplicationAttribute
   )
@@ -195,24 +181,78 @@ func getCurrentAppID() throws -> pid_t {
   return res
 }
 
-class CurrentAppObserver: NSObject {
-  @objc dynamic var currentAppPID: pid_t {
-    return try! getCurrentAppID()
+private func getAppBundleID(forPID pid: pid_t) -> String? {
+  let currentApp = NSWorkspace.shared.runningApplications.first {
+    $0.processIdentifier == pid
+  }
+  return currentApp?.bundleIdentifier
+}
+
+func getCurrentAppBundleID() -> String? {
+  guard let currentAppPID = try? getCurrentAppPID() else {
+    return nil
+  }
+  return getAppBundleID(forPID: currentAppPID)
+}
+
+// https://juejin.cn/post/6919716600543182855
+class WindowChangeObserver: NSObject {
+  var currentAppPID: pid_t
+  var element: AXUIElement
+  var rawObserver: AXObserver?
+
+  let notifNames =
+    [
+      kAXFocusedWindowChangedNotification
+      // kAXFocusedUIElementChangedNotification
+    ] as [CFString]
+
+  let observerCallbackWithInfo: AXObserverCallbackWithInfo = {
+    (observer, element, notification, userInfo, refcon) in
+    guard let refcon = refcon else {
+      return
+    }
+    let slf = Unmanaged<WindowChangeObserver>.fromOpaque(refcon).takeUnretainedValue()
+    print("should ping from \(slf.currentAppPID)")
+    NSWorkspace.shared.notificationCenter.post(
+      name: Claveilleur.focusedWindowChangedNotification,
+      object: slf.currentAppPID
+    )
   }
 
-  var observation: NSKeyValueObservation?
-
-  override init() {
+  init(pid: pid_t) {
+    currentAppPID = pid
+    element = AXUIElementCreateApplication(currentAppPID)
     super.init()
 
-    observation = observe(
-      \.currentAppPID,
-      options: [.new]
-    ) { _, change in
-      print("switching to \(change.newValue!)")
+    AXObserverCreateWithInfoCallback(currentAppPID, observerCallbackWithInfo, &rawObserver)
+
+    let selfPtr = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+    notifNames.forEach {
+      AXObserverAddNotification(rawObserver!, element, $0, selfPtr)
+    }
+    CFRunLoopAddSource(
+      CFRunLoopGetCurrent(),
+      AXObserverGetRunLoopSource(rawObserver!),
+      CFRunLoopMode.defaultMode
+    )
+
+    print("WindowChangeObserver pid: \(pid)")
+  }
+
+  deinit {
+    CFRunLoopRemoveSource(
+      CFRunLoopGetCurrent(),
+      AXObserverGetRunLoopSource(rawObserver!),
+      CFRunLoopMode.defaultMode
+    )
+    notifNames.forEach {
+      AXObserverRemoveNotification(rawObserver!, element, $0)
     }
   }
 }
 
-let currentAppObserver = CurrentAppObserver()
+let runningAppsObserver = RunningAppsObserver()
+// let foo = WindowChangeObserver(pid: 548)
+
 CFRunLoopRun()
