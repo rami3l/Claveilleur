@@ -1,11 +1,13 @@
 import AppKit
 import Carbon
+import Combine
 
 // TODO: Use Apple unified logging to replace `print`s: https://github.com/chrisaljoudi/swift-log-oslog
 
 // TODO: Add CLI interface: launch (normal), --(un)?install-service, --(start|stop|restart)-service
 
-// TODO: Handle spotlight: https://stackoverflow.com/questions/36264038/cocoa-programmatically-detect-frontmost-floating-windows
+// Special thanks to <https://stackoverflow.com/questions/36264038/cocoa-programmatically-detect-frontmost-floating-windows>
+// for providing the necessary directions of implementing Spotlight support.
 
 let suiteName = "io.github.rami3l.Claveilleur"
 let userDefaults = UserDefaults(suiteName: suiteName)!
@@ -55,11 +57,9 @@ let currentInputSourceObserver = NotificationCenter
     saveInputSource(inputSource, forApp: currentApp)
   }
 
-// TODO: Listen for `NSAccessibilityFocusedWindowChangedNotification` for each pid
-// https://developer.apple.com/documentation/appkit/nsaccessibilityfocusedwindowchangednotification
 class RunningAppsObserver: NSObject {
   @objc var currentWorkSpace: NSWorkspace
-  var observation: NSKeyValueObservation?
+  var rawObserver: NSKeyValueObservation?
 
   var windowChangeObservers = [pid_t: WindowChangeObserver?]()
 
@@ -77,11 +77,9 @@ class RunningAppsObserver: NSObject {
       )
     super.init()
 
-    observation = currentWorkSpace.observe(
-      \.runningApplications,
-      options: [.new]
-    ) { workspace, _ in
-      // TODO: Should not recreate necessary observers.
+    rawObserver = currentWorkSpace.observe(\.runningApplications) {
+      workspace,
+      _ in
       let oldKeys = Set(self.windowChangeObservers.keys)
       let newKeys = Self.getWindowChangePIDs(for: workspace)
 
@@ -89,16 +87,16 @@ class RunningAppsObserver: NSObject {
       if !toRemove.isEmpty {
         print("- windowChangeObservers: \(toRemove)")
       }
-      for key in toRemove {
-        self.windowChangeObservers.removeValue(forKey: key)
+      toRemove.forEach {
+        self.windowChangeObservers.removeValue(forKey: $0)
       }
 
       let toAdd = newKeys.subtracting(oldKeys)
       if !toAdd.isEmpty {
         print("+ windowChangeObservers: \(toAdd)")
       }
-      for key in toAdd {
-        self.windowChangeObservers[key] = try? WindowChangeObserver(pid: key)
+      toAdd.forEach {
+        self.windowChangeObservers[$0] = try? WindowChangeObserver(pid: $0)
       }
     }
   }
@@ -132,7 +130,7 @@ let focusedWindowChangedPublisher = NSWorkspace
   .shared
   .notificationCenter
   .publisher(for: Claveilleur.focusedWindowChangedNotification)
-  .map { getAppBundleID(forPID: $0.object as! pid_t) }
+  .compactMap { getAppBundleID(forPID: $0.object as! pid_t) }
 
 let didActivateAppPublisher = NSWorkspace
   .shared
@@ -140,21 +138,27 @@ let didActivateAppPublisher = NSWorkspace
   .publisher(
     for: NSWorkspace.didActivateApplicationNotification
   )
-  .map { notif in
+  .compactMap { notif in
     let userInfo =
       notif.userInfo?[NSWorkspace.applicationUserInfoKey]
       as? NSRunningApplication
     return userInfo?.bundleIdentifier
   }
 
-let currentAppObserver =
+let appHiddenPublisher = NSWorkspace
+  .shared
+  .notificationCenter
+  .publisher(for: Claveilleur.appHiddenNotification)
+  .compactMap { _ in getCurrentAppBundleID() }
+
+let appActivatedObserver =
   focusedWindowChangedPublisher
-  .merge(with: didActivateAppPublisher)
-  // .removeDuplicates()
+  .merge(with: didActivateAppPublisher, appHiddenPublisher)
+  .removeDuplicates()
   .sink { currentApp in
     print("ping from \(currentApp)")
-    // TODO: Should fix spotlight desactivation not detected.
 
+    // TODO: Uncomment those.
     // print("Switching to app: \(currentApp)")
     // guard
     //   let oldInputSource = userDefaults.string(forKey: currentApp),
@@ -282,6 +286,5 @@ class WindowChangeObserver: NSObject {
 }
 
 let runningAppsObserver = RunningAppsObserver()
-// let foo = WindowChangeObserver(pid: 548)
 
 CFRunLoopRun()
