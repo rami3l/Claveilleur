@@ -14,7 +14,7 @@ func setInputSource(to id: String) -> Bool {
   if getInputSource() == id {
     return true
   }
-  print("Restoring input source to: \(id)")
+  log.info("\(#function): restoring current input source to: \(id)")
   let filter = [kTISPropertyInputSourceID!: id] as NSDictionary
   let inputSources =
     TISCreateInputSourceList(filter, false).takeUnretainedValue()

@@ -20,7 +20,7 @@ class WindowChangeObserver: NSObject {
       return
     }
     let slf = Unmanaged<WindowChangeObserver>.fromOpaque(refcon).takeUnretainedValue()
-    print("should \(notif) from \(slf.currentAppPID)")
+    log.info("WindowChangeObserver: received \(notif) from \(slf.currentAppPID)")
 
     guard let notifName = slf.notifNames[notif] else {
       return
