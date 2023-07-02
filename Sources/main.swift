@@ -61,7 +61,7 @@ class RunningAppsObserver: NSObject {
   @objc var currentWorkSpace: NSWorkspace
   var observation: NSKeyValueObservation?
 
-  var windowChangeObservers = [pid_t: WindowChangeObserver]()
+  var windowChangeObservers = [pid_t: WindowChangeObserver?]()
 
   convenience override init() {
     self.init(workspace: NSWorkspace.shared)
@@ -69,44 +69,55 @@ class RunningAppsObserver: NSObject {
 
   init(workspace: NSWorkspace) {
     currentWorkSpace = workspace
-    windowChangeObservers = Self.getWindowChangeObservers(for: currentWorkSpace.runningApplications)
+    windowChangeObservers =
+      Dictionary(
+        uniqueKeysWithValues:
+          Self.getWindowChangePIDs(for: currentWorkSpace)
+          .map { ($0, try? WindowChangeObserver(pid: $0)) }
+      )
     super.init()
 
     observation = currentWorkSpace.observe(
       \.runningApplications,
       options: [.new]
-    ) { _, _ in
+    ) { workspace, _ in
       // TODO: Should not recreate necessary observers.
       let oldKeys = Set(self.windowChangeObservers.keys)
-      let newKeys = Set(self.currentWorkSpace.runningApplications.map { $0.processIdentifier })
+      let newKeys = Self.getWindowChangePIDs(for: workspace)
+
       let toRemove = oldKeys.subtracting(newKeys)
+      if !toRemove.isEmpty {
+        print("- windowChangeObservers: \(toRemove)")
+      }
       for key in toRemove {
         self.windowChangeObservers.removeValue(forKey: key)
       }
+
       let toAdd = newKeys.subtracting(oldKeys)
+      if !toAdd.isEmpty {
+        print("+ windowChangeObservers: \(toAdd)")
+      }
       for key in toAdd {
-        self.windowChangeObservers[key] = WindowChangeObserver(pid: key)
+        self.windowChangeObservers[key] = try? WindowChangeObserver(pid: key)
       }
     }
   }
 
-  static func getWindowChangeObservers(
-    for runningApps: [NSRunningApplication]
-  ) -> [pid_t: WindowChangeObserver] {
+  static func getWindowChangePIDs(
+    for workspace: NSWorkspace
+  ) -> Set<pid_t> {
     // https://apple.stackexchange.com/a/317705
     // https://gist.github.com/ljos/3040846
     // https://stackoverflow.com/a/61688877
-    // let onScreenAppPIDs =
-    //   (CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID)!
-    //   as Array)
-    //   .compactMap { $0.object(forKey: kCGWindowOwnerPID) as? pid_t }
+    let includingWindowAppPIDs =
+      (CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID)!
+      as Array)
+      .compactMap { $0.object(forKey: kCGWindowOwnerPID) as? pid_t }
 
-    return Dictionary(
-      uniqueKeysWithValues:
-        runningApps
+    return Set(
+      workspace.runningApplications.lazy
         .map { $0.processIdentifier }
-        // .filter { onScreenAppPIDs.contains($0) }
-        .map { ($0, WindowChangeObserver(pid: $0)) }
+        .filter { includingWindowAppPIDs.contains($0) }
     )
   }
 }
@@ -115,26 +126,36 @@ class RunningAppsObserver: NSObject {
 let focusedWindowChangedNotification =
   Notification.Name("claveilleur-focused-window-changed")
 
-let currentAppObserver = NSWorkspace
+let focusedWindowChangedPublisher = NSWorkspace
   .shared
   .notificationCenter
   .publisher(for: Claveilleur.focusedWindowChangedNotification)
   .map { getAppBundleID(forPID: $0.object as! pid_t) }
+
+let didActivateAppPublisher = NSWorkspace
+  .shared
+  .notificationCenter
+  .publisher(
+    for: NSWorkspace.didActivateApplicationNotification
+  )
   .merge(
-    with: NSWorkspace
+    with:
+      NSWorkspace
       .shared
       .notificationCenter
-      .publisher(
-        for: NSWorkspace.didActivateApplicationNotification
-      )
-      .map { notif in
-        let userInfo =
-          notif.userInfo?[NSWorkspace.applicationUserInfoKey]
-          as? NSRunningApplication
-        return userInfo?.bundleIdentifier
-      }
+      .publisher(for: NSWorkspace.didHideApplicationNotification)
   )
-  .removeDuplicates()
+  .map { notif in
+    let userInfo =
+      notif.userInfo?[NSWorkspace.applicationUserInfoKey]
+      as? NSRunningApplication
+    return userInfo?.bundleIdentifier
+  }
+
+let currentAppObserver =
+  focusedWindowChangedPublisher
+  .merge(with: didActivateAppPublisher)
+  // .removeDuplicates()
   .sink { currentApp in
     print("ping from \(currentApp)")
     // TODO: Should fix spotlight desactivation not detected.
@@ -158,14 +179,19 @@ enum AXUIError: Error {
 extension AXUIElement {
   func getValue<T>(forKey key: String) throws -> T {
     var res: AnyObject?
-    let axResult = AXUIElementCopyAttributeValue(self, key as CFString, &res)
-    guard case .success = axResult else {
-      throw AXUIError.axError("AXUI function failed with `\(axResult)`")
-    }
+    try AXUIElementCopyAttributeValue(self, key as CFString, &res).unwrap()
     guard let res = res as? T else {
       throw AXUIError.typeCastError("downcast failed from `\(type(of: res))` to `\(T.self)`")
     }
     return res
+  }
+}
+
+extension AXError {
+  func unwrap() throws {
+    guard case .success = self else {
+      throw AXUIError.axError("AXUI function failed with `\(self)`")
+    }
   }
 }
 
@@ -174,10 +200,7 @@ func getCurrentAppPID() throws -> pid_t {
     forKey: kAXFocusedApplicationAttribute
   )
   var res: pid_t = 0
-  let axResult = AXUIElementGetPid(currentApp, &res)
-  guard case .success = axResult else {
-    throw AXUIError.axError("AXUI function failed with `\(axResult)`")
-  }
+  try AXUIElementGetPid(currentApp, &res).unwrap()
   return res
 }
 
@@ -204,7 +227,6 @@ class WindowChangeObserver: NSObject {
   let notifNames =
     [
       kAXFocusedWindowChangedNotification
-      // kAXFocusedUIElementChangedNotification
     ] as [CFString]
 
   let observerCallbackWithInfo: AXObserverCallbackWithInfo = {
@@ -220,24 +242,23 @@ class WindowChangeObserver: NSObject {
     )
   }
 
-  init(pid: pid_t) {
+  init(pid: pid_t) throws {
     currentAppPID = pid
     element = AXUIElementCreateApplication(currentAppPID)
     super.init()
 
-    AXObserverCreateWithInfoCallback(currentAppPID, observerCallbackWithInfo, &rawObserver)
+    try AXObserverCreateWithInfoCallback(currentAppPID, observerCallbackWithInfo, &rawObserver)
+      .unwrap()
 
     let selfPtr = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-    notifNames.forEach {
-      AXObserverAddNotification(rawObserver!, element, $0, selfPtr)
+    try notifNames.forEach {
+      try AXObserverAddNotification(rawObserver!, element, $0, selfPtr).unwrap()
     }
     CFRunLoopAddSource(
       CFRunLoopGetCurrent(),
       AXObserverGetRunLoopSource(rawObserver!),
       CFRunLoopMode.defaultMode
     )
-
-    print("WindowChangeObserver pid: \(pid)")
   }
 
   deinit {
@@ -247,7 +268,9 @@ class WindowChangeObserver: NSObject {
       CFRunLoopMode.defaultMode
     )
     notifNames.forEach {
-      AXObserverRemoveNotification(rawObserver!, element, $0)
+      do {
+        try AXObserverRemoveNotification(rawObserver!, element, $0).unwrap()
+      } catch {}
     }
   }
 }
