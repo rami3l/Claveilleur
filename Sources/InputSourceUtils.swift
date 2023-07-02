@@ -1,9 +1,5 @@
 import Carbon
 
-func saveInputSource(_ id: String, forApp appID: String) {
-  userDefaults.set(id, forKey: appID)
-}
-
 // https://github.com/mzp/EmojiIM/issues/27#issue-1361876711
 func getInputSource() -> String {
   let inputSource = TISCopyCurrentKeyboardInputSource().takeUnretainedValue()

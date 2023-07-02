@@ -6,7 +6,7 @@ import Combine
 // TODO: Add CLI interface: launch (normal), --(un)?install-service, --(start|stop|restart)-service
 
 // Special thanks to <https://stackoverflow.com/questions/36264038/cocoa-programmatically-detect-frontmost-floating-windows>
-// for providing the necessary directions of implementing Spotlight support.
+// for providing the basic methodological guidance for supporting Spotlight and co.
 
 let currentInputSourceObserver = NotificationCenter
   .default
@@ -21,12 +21,6 @@ let currentInputSourceObserver = NotificationCenter
     print("Switching to input source: \(inputSource)")
     saveInputSource(inputSource, forApp: currentApp)
   }
-
-// https://stackoverflow.com/a/38928864
-let focusedWindowChangedNotification =
-  Notification.Name("claveilleur-focused-window-changed")
-let appHiddenNotification =
-  Notification.Name("claveilleur-app-hidden")
 
 let focusedWindowChangedPublisher = NSWorkspace
   .shared
