@@ -125,6 +125,8 @@ class RunningAppsObserver: NSObject {
 // https://stackoverflow.com/a/38928864
 let focusedWindowChangedNotification =
   Notification.Name("claveilleur-focused-window-changed")
+let appHiddenNotification =
+  Notification.Name("claveilleur-app-hidden")
 
 let focusedWindowChangedPublisher = NSWorkspace
   .shared
@@ -137,13 +139,6 @@ let didActivateAppPublisher = NSWorkspace
   .notificationCenter
   .publisher(
     for: NSWorkspace.didActivateApplicationNotification
-  )
-  .merge(
-    with:
-      NSWorkspace
-      .shared
-      .notificationCenter
-      .publisher(for: NSWorkspace.didHideApplicationNotification)
   )
   .map { notif in
     let userInfo =
@@ -226,18 +221,25 @@ class WindowChangeObserver: NSObject {
 
   let notifNames =
     [
-      kAXFocusedWindowChangedNotification
-    ] as [CFString]
+      kAXFocusedWindowChangedNotification:
+        Claveilleur.focusedWindowChangedNotification,
+      kAXApplicationHiddenNotification:
+        Claveilleur.appHiddenNotification,
+    ] as [CFString: Notification.Name]
 
   let observerCallbackWithInfo: AXObserverCallbackWithInfo = {
-    (observer, element, notification, userInfo, refcon) in
+    (observer, element, notif, userInfo, refcon) in
     guard let refcon = refcon else {
       return
     }
     let slf = Unmanaged<WindowChangeObserver>.fromOpaque(refcon).takeUnretainedValue()
-    print("should ping from \(slf.currentAppPID)")
+    print("should \(notif) from \(slf.currentAppPID)")
+
+    guard let notifName = slf.notifNames[notif] else {
+      return
+    }
     NSWorkspace.shared.notificationCenter.post(
-      name: Claveilleur.focusedWindowChangedNotification,
+      name: notifName,
       object: slf.currentAppPID
     )
   }
@@ -247,11 +249,15 @@ class WindowChangeObserver: NSObject {
     element = AXUIElementCreateApplication(currentAppPID)
     super.init()
 
-    try AXObserverCreateWithInfoCallback(currentAppPID, observerCallbackWithInfo, &rawObserver)
-      .unwrap()
+    try AXObserverCreateWithInfoCallback(
+      currentAppPID,
+      observerCallbackWithInfo,
+      &rawObserver
+    )
+    .unwrap()
 
     let selfPtr = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-    try notifNames.forEach {
+    try notifNames.keys.forEach {
       try AXObserverAddNotification(rawObserver!, element, $0, selfPtr).unwrap()
     }
     CFRunLoopAddSource(
@@ -267,7 +273,7 @@ class WindowChangeObserver: NSObject {
       AXObserverGetRunLoopSource(rawObserver!),
       CFRunLoopMode.defaultMode
     )
-    notifNames.forEach {
+    notifNames.keys.forEach {
       do {
         try AXObserverRemoveNotification(rawObserver!, element, $0).unwrap()
       } catch {}
