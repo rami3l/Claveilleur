@@ -1,8 +1,6 @@
 import Logging
 
-private func initLogger() -> Logger {
+let log: Logger = {
   LoggingSystem.bootstrap(StreamLogHandler.standardError)
-  return Logger(label: suiteName)
-}
-
-let log = initLogger()
+  return Logger(label: packageName)
+}()
