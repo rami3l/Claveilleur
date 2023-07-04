@@ -72,8 +72,25 @@ enum Service {
     print("Removed existing launch agent at `\(launchAgentPlistPathStr)`")
   }
 
-  // TODO: Finish this.
-  static func start() throws {}
-  static func stop() throws {}
-  static func restart() throws {}
+  static func start() throws {
+    if !isInstalled() {
+      try install()
+    }
+    try launchAgent.bootstrap()
+    guard case .running(_) = launchAgent.status() else {
+      launchAgent.start()
+      return
+    }
+  }
+
+  static func stop() throws {
+    guard isInstalled() else {
+      print(
+        "Launch agent not found at `\(launchAgentPlistPathStr)`, nothing to do"
+      )
+      return
+    }
+    launchAgent.stop()
+    try launchAgent.bootout()
+  }
 }

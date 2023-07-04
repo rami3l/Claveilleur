@@ -13,7 +13,6 @@ let currentInputSourceObserver = NotificationCenter
     guard let currentApp = getCurrentAppBundleID() else {
       return
     }
-
     saveInputSource(inputSource, forApp: currentApp)
   }
 
@@ -47,18 +46,16 @@ let appActivatedObserver =
   .merge(with: didActivateAppPublisher, appHiddenPublisher)
   .removeDuplicates()
   .sink { currentApp in
-    print("ping from \(currentApp)")
+    log.debug("appActivatedObserver: detected activation of app: \(currentApp)")
 
-    // TODO: Uncomment those.
-    // print("Switching to app: \(currentApp)")
-    // guard
-    //   let oldInputSource = userDefaults.string(forKey: currentApp),
-    //   setInputSource(to: oldInputSource)
-    // else {
-    //   let newInputSource = getInputSource()
-    //   saveInputSource(newInputSource, forApp: currentApp)
-    //   return
-    // }
+    guard
+      let oldInputSource = userDefaults.string(forKey: currentApp),
+      setInputSource(to: oldInputSource)
+    else {
+      let newInputSource = getInputSource()
+      saveInputSource(newInputSource, forApp: currentApp)
+      return
+    }
   }
 
 let runningAppsObserver = RunningAppsObserver()

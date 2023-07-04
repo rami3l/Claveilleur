@@ -1,18 +1,53 @@
 import ArgumentParser
 import Cocoa
 
-// TODO: Add CLI interface: launch (normal), --(un)?install-service, --(start|stop|restart)-service
-
 @main
 struct Command: ParsableCommand {
+  static var version = "0.1.0"
+
+  static var configuration = CommandConfiguration(
+    abstract: "An input source switching daemon for macOS.",
+    version: version
+  )
+
+  /// The behavior flag.
+  enum Operation: String, EnumerableFlag {
+    case run
+    case installService
+    case uninstallService
+    case startService
+    case stopService
+  }
+
+  /// The common options across subcommands.
+  struct Options: ParsableArguments, Decodable {
+    @Flag(name: .shortAndLong, help: "Enable verbose output.")
+    var verbose = false
+
+    @Flag(exclusivity: .exclusive, help: "The operation to be performed.")
+    var operation: Operation = .run
+  }
+
+  @OptionGroup var options: Options
+
   func run() throws {
-    // https://developer.apple.com/swift/blog/?id=7
-    _ = currentInputSourceObserver
-    _ = runningAppsObserver
-    _ = appActivatedObserver
+    if self.options.verbose {
+      logLevel = .debug
+    }
 
-    log.info("== Welcome to Claveilleur ==")
+    switch self.options.operation {
+    case .installService: try Service.install()
+    case .uninstallService: try Service.uninstall()
+    case .startService: try Service.start()
+    case .stopService: try Service.stop()
+    case .run:
+      // https://developer.apple.com/swift/blog/?id=7
+      _ = currentInputSourceObserver
+      _ = runningAppsObserver
+      _ = appActivatedObserver
 
-    CFRunLoopRun()
+      log.info("== Welcome to Claveilleur ==")
+      CFRunLoopRun()
+    }
   }
 }
