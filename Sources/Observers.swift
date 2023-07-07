@@ -11,6 +11,7 @@ let currentInputSourceObserver = NotificationCenter
   .removeDuplicates()
   .sink { inputSource in
     guard let currentApp = getCurrentAppBundleID() else {
+      log.warning("\(#function): failed to get current app bundle ID")
       return
     }
     saveInputSource(inputSource, forApp: currentApp)
@@ -25,15 +26,8 @@ let focusedWindowChangedPublisher = NSWorkspace
 let didActivateAppPublisher = NSWorkspace
   .shared
   .notificationCenter
-  .publisher(
-    for: NSWorkspace.didActivateApplicationNotification
-  )
-  .compactMap { notif in
-    let userInfo =
-      notif.userInfo?[NSWorkspace.applicationUserInfoKey]
-      as? NSRunningApplication
-    return userInfo?.bundleIdentifier
-  }
+  .publisher(for: NSWorkspace.didActivateApplicationNotification)
+  .compactMap(getAppBundleID(forNotification:))
 
 let appHiddenPublisher = NSWorkspace
   .shared

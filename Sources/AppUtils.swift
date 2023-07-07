@@ -16,9 +16,12 @@ func getAppBundleID(forPID pid: pid_t) -> String? {
   return currentApp?.bundleIdentifier
 }
 
+func getAppBundleID(forNotification notif: NotificationCenter.Publisher.Output) -> String? {
+  let runningApp =
+    notif.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+  return runningApp?.bundleIdentifier
+}
+
 func getCurrentAppBundleID() -> String? {
-  guard let currentAppPID = try? getCurrentAppPID() else {
-    return nil
-  }
-  return getAppBundleID(forPID: currentAppPID)
+  return (try? getCurrentAppPID()).flatMap(getAppBundleID(forPID:))
 }
