@@ -49,7 +49,7 @@ let appActivatedObserver =
     log.debug("appActivatedObserver: detected activation of app: \(currentApp)")
 
     guard
-      let oldInputSource = userDefaults.string(forKey: currentApp),
+      let oldInputSource = loadInputSource(forApp: currentApp),
       setInputSource(to: oldInputSource)
     else {
       let newInputSource = getInputSource()
