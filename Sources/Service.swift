@@ -40,7 +40,8 @@ enum Service {
     return res
   }()
 
-  static let launchAgentPlistPathStr = launchAgentPlistPath.absoluteString
+  static let launchAgentPlistPathStr =
+    String(launchAgentPlistPath.absoluteString.dropFirst("file://".count))
 
   static let logFilePrefix = NSString.path(
     withComponents: ["/", "tmp", "\(packageName)_\(username)"]
@@ -72,25 +73,32 @@ enum Service {
     print("Removed existing launch agent at `\(launchAgentPlistPathStr)`")
   }
 
+  static func reinstall() throws {
+    try uninstall()
+    try install()
+  }
+
   static func start() throws {
     if !isInstalled() {
       try install()
     }
+    print("Bootstrapping service...")
     try launchAgent.bootstrap()
-    guard case .running(_) = launchAgent.status() else {
+    if case .running(_) = launchAgent.status() {
+    } else {
+      print("Starting service...")
       launchAgent.start()
-      return
     }
+    print("Service started successfully")
   }
 
   static func stop() throws {
-    guard isInstalled() else {
-      print(
-        "Launch agent not found at `\(launchAgentPlistPathStr)`, nothing to do"
-      )
+    do {
+      launchAgent.stop()
+      try launchAgent.bootout()
+    } catch {
+      print("Failed to bootout: \(error)")
       return
     }
-    launchAgent.stop()
-    try launchAgent.bootout()
   }
 }

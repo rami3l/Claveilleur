@@ -15,6 +15,7 @@ struct Command: ParsableCommand {
     case run
     case installService
     case uninstallService
+    case reinstallService
     case startService
     case stopService
   }
@@ -38,6 +39,7 @@ struct Command: ParsableCommand {
     switch self.options.operation {
     case .installService: try Service.install()
     case .uninstallService: try Service.uninstall()
+    case .reinstallService: try Service.reinstall()
     case .startService: try Service.start()
     case .stopService: try Service.stop()
     case .run:

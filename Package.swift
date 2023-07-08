@@ -8,6 +8,9 @@ let package = Package(
   platforms: [
     .macOS(.v11)
   ],
+  products: [
+    .executable(name: "claveilleur", targets: ["Claveilleur"])
+  ],
   dependencies: [
     .package(
       url: "https://github.com/apple/swift-log.git",
