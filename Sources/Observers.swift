@@ -8,11 +8,15 @@ let currentInputSourceObserver = NotificationCenter
   .default
   .publisher(for: NSTextInputContext.keyboardSelectionDidChangeNotification)
   .map { _ in (getCurrentAppBundleID(), getInputSource()) }
+  .removeDuplicates { $0 == $1 }
   .sink { currentApp, inputSource in
     guard let currentApp = currentApp else {
       log.warning("\(#function): failed to get current app bundle ID for notification")
       return
     }
+    log.info(
+      "currentInputSourceObserver: updating input source for `\(currentApp)` to: \(inputSource)"
+    )
     saveInputSource(inputSource, forApp: currentApp)
   }
 
@@ -44,6 +48,9 @@ let appActivatedObserver =
       setInputSource(to: oldInputSource)
     else {
       let newInputSource = getInputSource()
+      log.info(
+        "appActivatedObserver: registering input source for `\(currentApp)` as: \(newInputSource)"
+      )
       saveInputSource(newInputSource, forApp: currentApp)
       return
     }

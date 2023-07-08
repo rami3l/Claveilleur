@@ -8,6 +8,5 @@ func loadInputSource(forApp appID: String) -> String? {
 }
 
 func saveInputSource(_ id: String, forApp appID: String) {
-  log.info("\(#function): saving input source for `\(appID)` to: \(id)")
   inputSourceState[appID] = id
 }
