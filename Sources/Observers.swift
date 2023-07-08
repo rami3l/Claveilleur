@@ -7,19 +7,17 @@ import Cocoa
 let currentInputSourceObserver = NotificationCenter
   .default
   .publisher(for: NSTextInputContext.keyboardSelectionDidChangeNotification)
-  .map { _ in getInputSource() }
-  .removeDuplicates()
-  .sink { inputSource in
-    guard let currentApp = getCurrentAppBundleID() else {
-      log.warning("\(#function): failed to get current app bundle ID")
+  .map { _ in (getCurrentAppBundleID(), getInputSource()) }
+  .sink { currentApp, inputSource in
+    guard let currentApp = currentApp else {
+      log.warning("\(#function): failed to get current app bundle ID for notification")
       return
     }
     saveInputSource(inputSource, forApp: currentApp)
   }
 
-let focusedWindowChangedPublisher = NSWorkspace
-  .shared
-  .notificationCenter
+let focusedWindowChangedPublisher =
+  localNotificationCenter
   .publisher(for: Claveilleur.focusedWindowChangedNotification)
   .compactMap { getAppBundleID(forPID: $0.object as! pid_t) }
 
@@ -29,9 +27,8 @@ let didActivateAppPublisher = NSWorkspace
   .publisher(for: NSWorkspace.didActivateApplicationNotification)
   .compactMap(getAppBundleID(forNotification:))
 
-let appHiddenPublisher = NSWorkspace
-  .shared
-  .notificationCenter
+let appHiddenPublisher =
+  localNotificationCenter
   .publisher(for: Claveilleur.appHiddenNotification)
   .compactMap { _ in getCurrentAppBundleID() }
 

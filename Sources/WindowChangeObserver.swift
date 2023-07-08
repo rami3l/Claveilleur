@@ -23,9 +23,10 @@ class WindowChangeObserver: NSObject {
     log.debug("WindowChangeObserver: received \(notif) from \(slf.currentAppPID)")
 
     guard let notifName = slf.notifNames[notif] else {
+      log.warning("\(#function): unknown notification `\(notif)` detected")
       return
     }
-    NSWorkspace.shared.notificationCenter.post(
+    localNotificationCenter.post(
       name: notifName,
       object: slf.currentAppPID
     )
