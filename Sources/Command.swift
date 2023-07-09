@@ -43,15 +43,15 @@ struct Command: ParsableCommand {
     case .startService: try Service.start()
     case .stopService: try Service.stop()
     case .run:
-      // https://developer.apple.com/swift/blog/?id=7
-      _ = currentInputSourceObserver
-      _ = runningAppsObserver
-      _ = appActivatedObserver
-
       guard hasAXPrivilege() else {
         log.error("Accessibility privilege not detected, bailing out...")
         return
       }
+
+      // https://developer.apple.com/swift/blog/?id=7
+      _ = currentInputSourceObserver
+      _ = runningAppsObserver
+      _ = appActivatedObserver
 
       log.info("== Welcome to Claveilleur ==")
       CFRunLoopRun()
