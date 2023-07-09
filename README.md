@@ -30,8 +30,6 @@ claveilleur --install-service
 claveilleur --start-service
 ```
 
-Please note that you might need to grant necessary privileges to `Claveilleur` through `System Settings > Privacy & Security > Accessibility`.
-
 On the other hand, to stop or uninstall the service, you can use the following:
 
 ```sh
@@ -41,3 +39,6 @@ claveilleur --stop-service
 # Removes the launch agent from `~/Library/LaunchAgents`
 claveilleur --uninstall-service
 ```
+
+Please note that you might need to grant necessary privileges to `Claveilleur` through `System Settings > Privacy & Security > Accessibility`.
+After doing so, you might need to stop the service and start it again for those changes to take effect.
