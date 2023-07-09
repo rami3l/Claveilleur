@@ -23,16 +23,6 @@ enum Service {
     )
     res.url = launchAgentPlistPath
     res.runAtLoad = true
-    // TODO: This should be something like...
-    /*
-    <key>KeepAlive</key>
-    <dict>
-       <key>SuccessfulExit</key>
- 	     <false/>
- 	     <key>Crashed</key>
- 	     <true/>
-    </dict>
-    */
     res.keepAlive = false
     res.standardOutPath = logFilePrefix + ".out.log"
     res.standardErrorPath = logFilePrefix + ".err.log"
@@ -70,6 +60,17 @@ enum Service {
       return
     }
     try LaunchControl.shared.write(launchAgent, to: launchAgentPlistPath)
+
+    // HACK: A manual patch is required to fix the `KeepAlive` value.
+    // See: <https://github.com/emorydunn/LaunchAgent/issues/7>
+    print("Patching launch agent at `\(launchAgentPlistPathStr)`, we are almost there...")
+    let launchAgentPlist = NSMutableDictionary(contentsOfFile: launchAgentPlistPathStr)!
+    launchAgentPlist.setValue(
+      ["SuccessfulExit": false, "Crashed": true],
+      forKey: "KeepAlive"
+    )
+    try launchAgentPlist.write(to: launchAgentPlistPath)
+
     print("Launch agent has been installed to `\(launchAgentPlistPathStr)`")
   }
 
