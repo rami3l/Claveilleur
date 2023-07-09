@@ -48,6 +48,11 @@ struct Command: ParsableCommand {
       _ = runningAppsObserver
       _ = appActivatedObserver
 
+      guard hasAXPrivilege() else {
+        log.error("Accessibility privilege not detected, bailing out...")
+        return
+      }
+
       log.info("== Welcome to Claveilleur ==")
       CFRunLoopRun()
     }

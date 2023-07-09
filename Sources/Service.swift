@@ -21,8 +21,19 @@ enum Service {
       label: packageName,
       program: exePath()!
     )
+    res.url = launchAgentPlistPath
     res.runAtLoad = true
-    res.keepAlive = true
+    // TODO: This should be something like...
+    /*
+    <key>KeepAlive</key>
+    <dict>
+       <key>SuccessfulExit</key>
+ 	     <false/>
+ 	     <key>Crashed</key>
+ 	     <true/>
+    </dict>
+    */
+    res.keepAlive = false
     res.standardOutPath = logFilePrefix + ".out.log"
     res.standardErrorPath = logFilePrefix + ".err.log"
     res.processType = .interactive
