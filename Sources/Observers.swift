@@ -1,12 +1,14 @@
+import Carbon
 import Cocoa
 
 // Special thanks to
 // <https://stackoverflow.com/questions/36264038/cocoa-programmatically-detect-frontmost-floating-windows>
 // for providing the basic methodological guidance for supporting Spotlight and co.
 
-let currentInputSourceObserver = NotificationCenter
+// https://stackoverflow.com/a/26697027
+let currentInputSourceObserver = DistributedNotificationCenter
   .default
-  .publisher(for: NSTextInputContext.keyboardSelectionDidChangeNotification)
+  .publisher(for: kTISNotifySelectedKeyboardInputSourceChanged as Notification.Name)
   .map { _ in (getCurrentAppBundleID(), getInputSource()) }
   .removeDuplicates { $0 == $1 }
   .sink { currentApp, inputSource in
