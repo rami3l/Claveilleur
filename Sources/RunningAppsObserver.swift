@@ -28,7 +28,7 @@ class RunningAppsObserver: NSObject {
 
       let toRemove = oldKeys.subtracting(newKeys)
       if !toRemove.isEmpty {
-        log.info("RunningAppsObserver: removing from windowChangeObservers: \(toRemove)")
+        log.debug("RunningAppsObserver: removing from windowChangeObservers: \(toRemove)")
       }
       toRemove.forEach {
         self.windowChangeObservers.removeValue(forKey: $0)
@@ -36,7 +36,7 @@ class RunningAppsObserver: NSObject {
 
       let toAdd = newKeys.subtracting(oldKeys)
       if !toAdd.isEmpty {
-        log.info("RunningAppsObserver: adding to windowChangeObservers: \(toAdd)")
+        log.debug("RunningAppsObserver: adding to windowChangeObservers: \(toAdd)")
       }
       toAdd.forEach {
         self.windowChangeObservers[$0] = try? WindowChangeObserver(pid: $0)

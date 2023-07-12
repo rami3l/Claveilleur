@@ -16,7 +16,7 @@ let currentInputSourceObserver = DistributedNotificationCenter
       log.warning("\(#function): failed to get current app bundle ID for notification")
       return
     }
-    log.info(
+    log.debug(
       "currentInputSourceObserver: updating input source for `\(currentApp)` to: \(inputSource)"
     )
     saveInputSource(inputSource, forApp: currentApp)
