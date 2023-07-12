@@ -6,6 +6,7 @@ import LaunchAgent
 let username = NSUserName()
 let home = FileManager.default.homeDirectoryForCurrentUser
 
+/// Returns the path of the current executable.
 func exePath() -> String? {
   var pathBuf = [Int8](repeating: 0, count: 4096)
   var pathBufSize = UInt32(pathBuf.count)
@@ -15,6 +16,7 @@ func exePath() -> String? {
   return String(cString: &pathBuf, encoding: String.Encoding.ascii)
 }
 
+/// Utilities for managing `Claveilleur`'s as a permanent service (i.e. daemon).
 enum Service {
   static let launchAgent: LaunchAgent = {
     let res = LaunchAgent(

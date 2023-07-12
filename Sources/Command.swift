@@ -48,6 +48,7 @@ struct Command: ParsableCommand {
         return
       }
 
+      // Trigger top-level `let` declarations' initialization.
       // https://developer.apple.com/swift/blog/?id=7
       _ = currentInputSourceObserver
       _ = runningAppsObserver
