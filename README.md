@@ -26,19 +26,24 @@ Getting started is as simple as:
 # Installs the launch agent under `~/Library/LaunchAgents`
 claveilleur --install-service
 
-# Run the service through launchd
+# Starts the service through launchd
 claveilleur --start-service
 ```
 
-On the other hand, to stop or uninstall the service, you can use the following:
+If this is your first time using `Claveilleur`, please note that you might need to grant necessary privileges through `System Settings > Privacy & Security > Accessibility`.
+After doing so, you might need to stop the service and start it again for those changes to take effect:
 
 ```sh
-# Stop the service through launchd
+# Restarts the service through launchd
+claveilleur --stop-service && claveilleur --start-service
+```
+
+To uninstall the service, you just need to run the following:
+
+```sh
+# Stops the service through launchd
 claveilleur --stop-service
 
 # Removes the launch agent from `~/Library/LaunchAgents`
 claveilleur --uninstall-service
 ```
-
-Please note that you might need to grant necessary privileges to `Claveilleur` through `System Settings > Privacy & Security > Accessibility`.
-After doing so, you might need to stop the service and start it again for those changes to take effect.
