@@ -9,10 +9,10 @@ import Cocoa
 let currentInputSourceObserver = DistributedNotificationCenter
   .default
   .publisher(for: kTISNotifySelectedKeyboardInputSourceChanged as Notification.Name)
-  .map { _ in (getCurrentAppBundleID(), getInputSource()) }
-  .removeDuplicates { $0 == $1 }
-  .sink { currentApp, inputSource in
-    guard let currentApp = currentApp else {
+  .map { _ in getInputSource() }
+  .removeDuplicates()
+  .sink { inputSource in
+    guard let currentApp = getCurrentAppBundleID() else {
       log.warning("\(#function): failed to get current app bundle ID for notification")
       return
     }
