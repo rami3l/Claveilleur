@@ -8,6 +8,12 @@ Inspired by a native Windows functionality, it can automatically switch the curr
 
 ## Building & Installation
 
+### Installing with `brew`
+
+```sh
+brew install rami3l/tap/claveilleur
+```
+
 ### Building from source
 
 ```sh
