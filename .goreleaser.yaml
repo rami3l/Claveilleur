@@ -35,7 +35,7 @@ archives:
       - none*
     name_template: >-
       {{ .ProjectName }}_
-      {{- title .Os }}_
+      {{- .Os }}_
       {{- if eq .Arch "all" }}universal2
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
@@ -47,3 +47,25 @@ archives:
 
 checksum:
   name_template: "checksums.txt"
+
+brews:
+  # https://goreleaser.com/customization/homebrew/
+  - homepage: https://github.com/rami3l/Claveilleur
+    description: An input source switching daemon for macOS.
+    license: BSD-2-Clause
+
+    # test: |
+    #   system "#{bin}/claveilleur --help"
+
+    install: |
+      bin.install "claveilleur"
+
+    skip_upload: auto
+
+    # https://github.com/goreleaser/goreleaser/blob/a0f0d01a8143913cde72ebc1248abef089ae9b27/.goreleaser.yaml#L211
+    repository:
+      owner: rami3l
+      name: homebrew-tap
+      branch: "{{.ProjectName}}-{{.Version}}"
+      pull_request:
+        enabled: true
