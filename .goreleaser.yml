@@ -54,11 +54,11 @@ brews:
     description: An input source switching daemon for macOS.
     license: BSD-2-Clause
 
-    # test: |
-    #   system "#{bin}/claveilleur --help"
-
     install: |
       bin.install "claveilleur"
+
+    test: |
+      system "#{bin}/claveilleur --help"
 
     # TODO: Use `auto` when we move out of prerelease.
     # skip_upload: auto
@@ -69,5 +69,10 @@ brews:
       owner: rami3l
       name: homebrew-tap
       branch: "{{.ProjectName}}-{{.Version}}"
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
       pull_request:
         enabled: true
+        base:
+          owner: rami3l
+          name: homebrew-tap
+          branch: master
