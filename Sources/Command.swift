@@ -3,7 +3,7 @@ import Cocoa
 
 @main
 struct Command: ParsableCommand {
-  static var version = "0.1.0"
+  static var version = packageVersion
 
   static var configuration = CommandConfiguration(
     abstract: "An input source switching daemon for macOS.",
