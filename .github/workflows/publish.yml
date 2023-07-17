@@ -1,0 +1,42 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  create-release:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          prerelease: ${{ contains(github.ref, '-') }}
+
+  publish:
+    name: Publish for ${{ matrix.os }}
+    needs: [create-release]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v1
+      - name: Build
+        # https://liamnichols.eu/2020/08/01/building-swift-packages-as-a-universal-binary.html
+        run: |
+          swift build -c release --arch arm64 --arch x86_64
+      - name: Publish via GoReleaser
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
