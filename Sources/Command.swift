@@ -18,6 +18,7 @@ struct Command: ParsableCommand {
     case reinstallService
     case startService
     case stopService
+    case restartService
   }
 
   /// The common options across subcommands.
@@ -42,6 +43,7 @@ struct Command: ParsableCommand {
     case .reinstallService: try Service.reinstall()
     case .startService: try Service.start()
     case .stopService: try Service.stop()
+    case .restartService: try Service.restart()
     case .run:
       guard hasAXPrivilege() else {
         log.error("Accessibility privilege not detected, bailing out...")

@@ -1,7 +1,6 @@
+// https://github.com/koekeishiya/skhd/blob/f88e7ad403ebbee1b8bac988d8b162d595f595c4/src/service.h
 import Cocoa
 import LaunchAgent
-
-// https://github.com/koekeishiya/skhd/blob/f88e7ad403ebbee1b8bac988d8b162d595f595c4/src/service.h
 
 let username = NSUserName()
 let home = FileManager.default.homeDirectoryForCurrentUser
@@ -83,6 +82,7 @@ enum Service {
       )
       return
     }
+    try stop()
     try FileManager.default.removeItem(at: launchAgentPlistPath)
     print("Removed existing launch agent at `\(launchAgentPlistPathStr)`")
   }
@@ -108,11 +108,17 @@ enum Service {
 
   static func stop() throws {
     do {
+      print("Stopping service...")
       launchAgent.stop()
       try launchAgent.bootout()
     } catch {
       print("Failed to bootout: \(error)")
       return
     }
+  }
+
+  static func restart() throws {
+    try stop()
+    try start()
   }
 }
