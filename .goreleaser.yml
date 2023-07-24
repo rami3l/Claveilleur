@@ -26,7 +26,8 @@ universal_binaries:
     hooks:
       post:
         - mkdir -p ./dist/claveilleur_darwin_all
-        - bash -c 'cp "$(swift build --show-bin-path -c release --arch arm64 --arch x86_64)/claveilleur" ./dist/claveilleur_darwin_all/claveilleur'
+        - bash -c 'cp "$(swift build --show-bin-path -c release --arch arm64 --arch x86_64)/claveilleur" {{ .Path }}'
+        - codesign -dvvv --force --sign - {{ .Path }}
 
 archives:
   - format: tar.gz
