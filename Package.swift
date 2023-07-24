@@ -35,7 +35,16 @@ let package = Package(
         .product(name: "Logging", package: "swift-log"),
         .product(name: "LaunchAgent", package: "LaunchAgent"),
       ],
-      path: "Sources"
+      path: "Sources",
+      // https://forums.swift.org/t/swift-package-manager-use-of-info-plist-use-for-apps/6532/13
+      linkerSettings: [
+        .unsafeFlags([
+          "-Xlinker", "-sectcreate",
+          "-Xlinker", "__TEXT",
+          "-Xlinker", "__info_plist",
+          "-Xlinker", "Supporting/Info.plist",
+        ])
+      ]
     )
   ]
 )

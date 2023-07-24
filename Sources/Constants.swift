@@ -1,2 +1,6 @@
-let packageName = "io.github.rami3l.Claveilleur"
-let packageVersion = "0.1.0"
+import Cocoa
+
+let packageName = Bundle.main.bundleIdentifier!
+let packageVersion =
+  Bundle.main.infoDictionary?["CFBundleShortVersionString"]
+  as? String ?? "n/a"
