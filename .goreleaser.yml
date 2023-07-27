@@ -49,6 +49,9 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+release:
+  prerelease: auto
+
 brews:
   # https://goreleaser.com/customization/homebrew/
   - homepage: https://github.com/rami3l/Claveilleur
