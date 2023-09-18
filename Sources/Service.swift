@@ -96,6 +96,14 @@ enum Service {
     if !isInstalled() {
       try install()
     }
+    if !hasAXPrivilege() {
+      log.warning(
+        "Accessibility privilege not detected, the service might exit immediately on startup..."
+      )
+      log.warning(
+        "Please grant necessary privileges in `System Settings > Privacy & Security` and restart the service"
+      )
+    }
     print("Bootstrapping service...")
     try launchAgent.bootstrap()
     if case .running(_) = launchAgent.status() {
