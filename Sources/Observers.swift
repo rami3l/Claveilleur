@@ -13,7 +13,9 @@ let currentInputSourceObserver = DistributedNotificationCenter
   .removeDuplicates()
   .sink { inputSource in
     guard let currentApp = getCurrentAppBundleID() else {
-      log.warning("\(#function): failed to get current app bundle ID for notification")
+      log.warning(
+        "currentInputSourceObserver: failed to get current app bundle ID for notification"
+      )
       return
     }
     log.debug(
