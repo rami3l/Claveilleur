@@ -51,12 +51,17 @@ class RunningAppsObserver: NSObject {
     // https://gist.github.com/ljos/3040846
     // https://stackoverflow.com/a/61688877
     let includingWindowAppPIDs =
-      (CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID)!
-      as Array)
+      (CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID)! as Array)
       .compactMap { $0.object(forKey: kCGWindowOwnerPID) as? pid_t }
+
+    // HACK: When hiding some system apps, `AXApplicationHidden` is not sent.
+    // We exclude these apps from the observation for now.
+    // https://github.com/tekezo/Files/blob/5d783774fec5e45259b9677cdfe09298ff4bd452/app/AXTest/AXTest/Classes/AXApplicationObserverManager.m#L109
+    let specialSystemAppIDs = ["com.apple.notificationcenterui"] as [String?]
 
     return Set(
       workspace.runningApplications.lazy
+        .filter { !specialSystemAppIDs.contains($0.bundleIdentifier) }
         .map { $0.processIdentifier }
         .filter { includingWindowAppPIDs.contains($0) }
     )
