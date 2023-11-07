@@ -56,8 +56,11 @@ class RunningAppsObserver: NSObject {
 
     // HACK: When hiding some system apps, `AXApplicationHidden` is not sent.
     // We exclude these apps from the observation for now.
-    // https://github.com/tekezo/Files/blob/5d783774fec5e45259b9677cdfe09298ff4bd452/app/AXTest/AXTest/Classes/AXApplicationObserverManager.m#L109
-    let specialSystemAppIDs = ["com.apple.notificationcenterui"] as [String?]
+    // See: https://github.com/rami3l/Claveilleur/issues/3
+    let specialSystemAppIDs = Set<String?>([
+      "com.apple.controlcenter",
+      "com.apple.notificationcenterui",
+    ])
 
     return Set(
       workspace.runningApplications.lazy
