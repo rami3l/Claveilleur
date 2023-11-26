@@ -64,6 +64,9 @@ brews:
     test: |
       system "#{bin}/claveilleur --help"
 
+    custom_block: |
+      head "https://github.com/rami3l/Claveilleur.git"
+
     # TODO: Use `auto` when we move out of prerelease.
     # skip_upload: auto
     skip_upload: false
