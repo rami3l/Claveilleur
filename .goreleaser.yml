@@ -58,14 +58,20 @@ brews:
     description: An input source switching daemon for macOS.
     license: BSD-2-Clause
 
+    custom_block: |
+      head "https://github.com/rami3l/Claveilleur.git"
+      depends_on xcode: ["14.3", :build]
+
     install: |
-      bin.install "claveilleur"
+      base_dir = "."
+      if build.head? then
+        system "swift", "build", "--disable-sandbox", "-c", "release"
+        base_dir = `swift build --show-bin-path -c release`.strip
+      end
+      bin.install "#{base_dir}/claveilleur"
 
     test: |
       system "#{bin}/claveilleur --help"
-
-    custom_block: |
-      head "https://github.com/rami3l/Claveilleur.git"
 
     # TODO: Use `auto` when we move out of prerelease.
     # skip_upload: auto
