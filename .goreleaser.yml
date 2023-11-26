@@ -60,7 +60,10 @@ brews:
 
     custom_block: |
       head "https://github.com/rami3l/Claveilleur.git"
-      depends_on xcode: ["14.3", :build]
+
+      head do
+        depends_on xcode: ["14.3", :build]
+      end
 
     install: |
       base_dir = "."
