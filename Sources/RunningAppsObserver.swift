@@ -58,8 +58,8 @@ class RunningAppsObserver: NSObject {
     // We exclude these apps from the observation for now.
     // See: https://github.com/rami3l/Claveilleur/issues/3
     let specialSystemAppIDs = Set<String?>([
-      "com.apple.controlcenter",
-      "com.apple.notificationcenterui",
+      // "com.apple.controlcenter",
+      // "com.apple.notificationcenterui",
     ])
 
     return Set(

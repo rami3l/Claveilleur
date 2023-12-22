@@ -6,11 +6,14 @@ class WindowChangeObserver: NSObject {
   var element: AXUIElement
   var rawObserver: AXObserver?
 
+  // https://github.com/thecodesmith/appium-for-mac/blob/ac4348e578546233b1b435b10430f6b91973f108/Frameworks/PFAssistive.framework/Versions/J/Headers/PFUIElement.h#L959-L995
   let notifNames =
     [
       kAXFocusedWindowChangedNotification:
         Claveilleur.focusedWindowChangedNotification,
       kAXApplicationHiddenNotification:
+        Claveilleur.appHiddenNotification,
+      kAXUIElementDestroyedNotification:
         Claveilleur.appHiddenNotification,
     ] as [CFString: Notification.Name]
 
