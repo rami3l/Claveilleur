@@ -15,7 +15,7 @@ func exePath() -> String? {
   return String(cString: &pathBuf, encoding: String.Encoding.ascii)
 }
 
-/// Utilities for managing `Claveilleur`'s as a permanent service (i.e. daemon).
+/// Utilities for registering `Claveilleur` as a permanent service (i.e. daemon).
 enum Service {
   static let launchAgent: LaunchAgent = {
     let res = LaunchAgent(
@@ -106,7 +106,7 @@ enum Service {
     }
     print("Bootstrapping service...")
     try launchAgent.bootstrap()
-    if case .running(_) = launchAgent.status() {
+    if case .running = launchAgent.status() {
     } else {
       print("Starting service...")
       launchAgent.start()
