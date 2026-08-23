@@ -1,6 +1,7 @@
+mod util;
+
 use std::{env, str::FromStr};
 
-use clap::{Parser, Subcommand, builder::FalseyValueParser};
 use clavy::{
     error::{Error, Result},
     observer::{
@@ -27,66 +28,64 @@ use objc2_app_kit::{NSWorkspace, NSWorkspaceDidActivateApplicationNotification};
 use objc2_foundation::{NSDistributedNotificationCenter, NSNotification, NSNumber, NSString};
 use smol::channel;
 use tracing::{Level, debug, event, event_enabled, info, warn};
+use usage_rs::{Cli, Run, Subcommands};
 
+use self::util::FalseyBool;
 use crate::_built::GIT_VERSION;
 
 // TODO: Replace this with `.unwrap_or()` when it's available in `const`.
 const VERSION: &str = match GIT_VERSION {
     Some(v) => v,
-    None => clap::crate_version!(),
+    None => env!("CARGO_PKG_VERSION"),
 };
 
-/// The command line options to be collected.
-#[derive(Clone, Debug, Parser)]
-#[command(
-    version = VERSION,
-    author = clap::crate_authors!(),
-    about = clap::crate_description!(),
-    before_help = format!("{name} {VERSION}", name = clap::crate_name!()),
-)]
+#[derive(Clone, Debug, Cli)]
+#[usage(version = VERSION, about)]
 pub struct Clavy {
-    #[clap(subcommand)]
+    #[usage(subcommand)]
     subcmd: Option<Subcmd>,
 
-    /// Do not use colors in output.
-    #[clap(long, env, value_parser = FalseyValueParser::new())]
-    no_color: bool,
+    /// Do not use colors in output
+    #[usage(long, env, value_optional, default_missing = "true")]
+    no_color: Option<FalseyBool>,
 
-    /// Comma-separated list of bundle IDs to detect popup windows from.
-    #[clap(long, env = "CLAVY_DETECT_POPUP", value_delimiter = ',')]
+    /// Comma-separated list of bundle IDs to detect popup windows from
+    #[usage(long, env = "CLAVY_DETECT_POPUP", delimiter = ',')]
     detect_popup: Vec<String>,
 }
 
-#[derive(Default, Copy, Clone, Debug, Subcommand)]
+#[derive(Default, Copy, Clone, Debug, Subcommands)]
 pub enum Subcmd {
-    /// Launch the daemon directly in the console.
+    /// Launch the daemon directly in the console
     #[default]
     Launch,
 
-    /// Install the service.
+    /// Install the service
     Install,
 
-    /// Uninstall the service.
+    /// Uninstall the service
     Uninstall,
 
-    /// Reinstall the service.
+    /// Reinstall the service
     Reinstall,
 
-    /// Start the service.
+    /// Start the service
     Start,
 
-    /// Stop the service.
+    /// Stop the service
     Stop,
 
-    /// Restart the service.
+    /// Restart the service
     Restart,
 }
 
-impl Clavy {
-    pub(crate) fn dispatch(&self) -> Result<()> {
+impl Run for Clavy {
+    type Output = Result<()>;
+
+    fn run(self) -> Self::Output {
         tracing_subscriber::fmt()
             .compact()
-            .with_ansi(!self.no_color)
+            .with_ansi(!self.no_color.map_or_default(|b| b.0))
             .with_max_level(
                 env::var_os("RUST_LOG")
                     .and_then(|s| Level::from_str(&s.to_string_lossy()).ok())

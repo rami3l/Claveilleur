@@ -1,6 +1,6 @@
-use clap::Parser;
 use clavy::error::Result;
 use embed_plist::embed_info_plist;
+use usage_rs::Run;
 
 use crate::cmd::Clavy;
 
@@ -13,5 +13,5 @@ mod _built {
 embed_info_plist!("../assets/Info.plist");
 
 fn main() -> Result<()> {
-    Clavy::parse().dispatch()
+    Clavy::parse().run()
 }
