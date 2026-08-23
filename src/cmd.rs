@@ -28,7 +28,7 @@ use objc2_app_kit::{NSWorkspace, NSWorkspaceDidActivateApplicationNotification};
 use objc2_foundation::{NSDistributedNotificationCenter, NSNotification, NSNumber, NSString};
 use smol::channel;
 use tracing::{Level, debug, event, event_enabled, info, warn};
-use usage_rs::{Cli, Run, Subcommands};
+use usage_rs::{Cli, Run, Subcommands, complete::Shell};
 
 use self::util::FalseyBool;
 use crate::_built::GIT_VERSION;
@@ -40,7 +40,7 @@ const VERSION: &str = match GIT_VERSION {
 };
 
 #[derive(Clone, Debug, Cli)]
-#[usage(version = VERSION, about)]
+#[usage(version = VERSION, about, completion)]
 pub struct Clavy {
     #[usage(subcommand)]
     subcmd: Option<Subcmd>,
@@ -54,7 +54,7 @@ pub struct Clavy {
     detect_popup: Vec<String>,
 }
 
-#[derive(Default, Copy, Clone, Debug, Subcommands)]
+#[derive(Default, Clone, Debug, Subcommands)]
 pub enum Subcmd {
     /// Launch the daemon directly in the console
     #[default]
@@ -77,6 +77,12 @@ pub enum Subcmd {
 
     /// Restart the service
     Restart,
+
+    /// Print the shell completion script
+    Completion {
+        /// The shell to generate the completion script for
+        shell: String,
+    },
 }
 
 impl Run for Clavy {
@@ -121,6 +127,12 @@ impl Run for Clavy {
             Subcmd::Start => service()?.start()?,
             Subcmd::Stop => service()?.stop()?,
             Subcmd::Restart => service()?.restart()?,
+            Subcmd::Completion { shell } => {
+                let Some(shell) = Shell::from_name(&shell) else {
+                    return Err(Error::InvalidInput(format!("unsupported shell `{shell}`")));
+                };
+                print!("{}", Self::completion_script(shell));
+            }
         }
         Ok(())
     }
