@@ -13,6 +13,8 @@ pub enum Error {
     FaultyExePath,
     #[error("accessibility privileges are not detected")]
     AxPrivilegesNotDetected,
+    #[error("invalid input: {0}")]
+    InvalidInput(String),
     #[error(transparent)]
     Io(#[from] io::Error),
 }
